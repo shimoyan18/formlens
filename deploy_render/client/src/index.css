@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: #050505;
+    color: #4AF626;
+    font-family: 'Space Mono', 'Noto Sans JP', monospace;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    overscroll-behavior: none;
+  }
+
+  /* Global scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px);
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(10, 25, 47, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid #234B4C;
+    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(74, 246, 38, 0.05), inset 0 1px 0 rgba(74, 246, 38, 0.1);
+    position: relative;
+  }
+
+  /* Cyberpunk corner cuts */
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 12px;
+    height: 12px;
+    border-top: 1px solid #4AF626;
+    border-right: 1px solid #4AF626;
+    opacity: 0.6;
+  }
+
+  .glass-card::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: -1px;
+    width: 12px;
+    height: 12px;
+    border-bottom: 1px solid #4AF626;
+    border-left: 1px solid #4AF626;
+    opacity: 0.6;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+
+  .glass-card-hover:hover {
+    border-color: #4AF626;
+    box-shadow: 0 0 20px rgba(74, 246, 38, 0.15), inset 0 0 30px rgba(74, 246, 38, 0.03);
+  }
+
+  .btn-primary {
+    font-family: 'Orbitron', 'Share Tech Mono', monospace;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, rgba(74, 246, 38, 0.15), rgba(74, 246, 38, 0.05));
+    color: #4AF626;
+    border: 1px solid #4AF626;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, rgba(74, 246, 38, 0.3), rgba(74, 246, 38, 0.1));
+    box-shadow: 0 0 20px rgba(74, 246, 38, 0.3), inset 0 0 20px rgba(74, 246, 38, 0.05);
+    text-shadow: 0 0 10px rgba(74, 246, 38, 0.8);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.95);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    font-family: 'Orbitron', 'Share Tech Mono', monospace;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(138, 226, 255, 0.05);
+    color: #8AE2FF;
+    border: 1px solid #234B4C;
+    transition: all 0.3s;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+
+  .btn-secondary:hover {
+    border-color: #8AE2FF;
+    background: rgba(138, 226, 255, 0.1);
+    box-shadow: 0 0 15px rgba(138, 226, 255, 0.2);
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.95);
+  }
+
+  .section-title {
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #4AF626;
+    text-shadow: 0 0 10px rgba(74, 246, 38, 0.5);
+    font-size: 1.1rem;
+  }
+
+  /* Glitch hover effect */
+  .glitch-hover:hover {
+    animation: glitch 0.3s ease-in-out;
+  }
+
+  /* HUD crosshair on hover */
+  .hud-hover {
+    position: relative;
+  }
+
+  .hud-hover::before,
+  .hud-hover::after {
+    content: '';
+    position: absolute;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .hud-hover:hover::before {
+    opacity: 0.6;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    border: 1px solid #4AF626;
+    border-radius: 50%;
+  }
+
+  .hud-hover:hover::after {
+    opacity: 0.4;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;
+    height: 20px;
+    background: #4AF626;
+    box-shadow: 15px -10px 0 0 #4AF626, -15px 10px 0 0 #4AF626,
+      10px 15px 0 0 transparent, -10px -15px 0 0 transparent;
+  }
+
+  /* Circuit pattern background */
+  .circuit-bg {
+    background-image:
+      linear-gradient(rgba(74, 246, 38, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74, 246, 38, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #4AF626, #8AE2FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-green {
+    text-shadow: 0 0 10px rgba(74, 246, 38, 0.8), 0 0 20px rgba(74, 246, 38, 0.4);
+  }
+
+  .glow-blue {
+    text-shadow: 0 0 10px rgba(138, 226, 255, 0.8), 0 0 20px rgba(138, 226, 255, 0.4);
+  }
+
+  .glow-red {
+    text-shadow: 0 0 10px rgba(255, 42, 42, 0.8), 0 0 20px rgba(255, 42, 42, 0.4);
+  }
+
+  .border-glow-green {
+    box-shadow: 0 0 8px rgba(74, 246, 38, 0.3), inset 0 0 8px rgba(74, 246, 38, 0.05);
+  }
+}
+
+/* Scrollbar - cyberpunk style */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+  border-left: 1px solid #234B4C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4AF626;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8AE2FF;
+  box-shadow: 0 0 10px #8AE2FF;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(74, 246, 38, 0.3);
+  color: #4AF626;
+}
