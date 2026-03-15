@@ -76,58 +76,93 @@ export default function VideoTrimmer({ videoFile, onConfirm, onBack }) {
         setIsPlaying(true);
     }, [startTime]);
 
+    const stateRef = useRef({ startTime: 0, endTime: 0, duration: 0, isDragging: null });
+    stateRef.current = { startTime, endTime, duration, isDragging };
+
     const getTimeFromPosition = useCallback((clientX) => {
         const rect = timelineRef.current?.getBoundingClientRect();
         if (!rect) return 0;
-        return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * duration;
-    }, [duration]);
+        return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * stateRef.current.duration;
+    }, []);
 
     const handleHandleDown = useCallback((e, type) => {
         e.preventDefault(); e.stopPropagation();
         const clientX = e.clientX ?? e.touches?.[0]?.clientX;
-        dragStartRef.current = { type, clientX, moved: false };
+        dragStartRef.current = { type, clientX, moved: false, lastSeek: 0 };
         setIsDragging(type);
     }, []);
 
     const handleTimelineClick = useCallback((e) => {
+        const { isDragging, startTime, endTime, duration } = stateRef.current;
         if (isDragging) return;
         const clientX = e.clientX ?? e.touches?.[0]?.clientX;
         if (clientX == null) return;
         const rect = timelineRef.current?.getBoundingClientRect();
         if (rect && duration > 0) {
             const tapTime = ((clientX - rect.left) / rect.width) * duration;
-            const handleRange = duration * (30 / rect.width);
+            const handleRange = duration * (50 / rect.width); // Hit area expanded
             const startDist = Math.abs(tapTime - startTime);
             const endDist = Math.abs(tapTime - endTime);
             if (startDist < handleRange && startDist <= endDist) {
-                dragStartRef.current = { type: 'start', clientX, moved: false }; setIsDragging('start'); return;
+                dragStartRef.current = { type: 'start', clientX, moved: false, lastSeek: 0 }; setIsDragging('start'); return;
             }
             if (endDist < handleRange) {
-                dragStartRef.current = { type: 'end', clientX, moved: false }; setIsDragging('end'); return;
+                dragStartRef.current = { type: 'end', clientX, moved: false, lastSeek: 0 }; setIsDragging('end'); return;
             }
         }
         const time = getTimeFromPosition(clientX);
         const vid = videoRef.current;
-        if (vid) { vid.currentTime = time; setDisplayTime(time); const el = playheadRef.current; if (el && vid.duration) el.style.left = `${(time / vid.duration) * 100}%`; }
-    }, [getTimeFromPosition, isDragging, startTime, endTime, duration]);
+        if (vid) { 
+            vid.currentTime = time; 
+            setDisplayTime(time); 
+            const el = playheadRef.current; 
+            if (el && vid.duration) el.style.left = `${(time / vid.duration) * 100}%`; 
+        }
+    }, [getTimeFromPosition]);
 
     const handlePointerMove = useCallback((e) => {
+        const { isDragging, startTime, endTime, duration } = stateRef.current;
         if (!isDragging) return;
         e.preventDefault();
         const clientX = e.clientX ?? e.touches?.[0]?.clientX;
         if (clientX == null) return;
         if (dragStartRef.current) dragStartRef.current.moved = true;
         const time = getTimeFromPosition(clientX);
-        if (isDragging === 'start') {
-            const n = Math.max(0, Math.min(time, endTime - 0.3)); setStartTime(n);
-            const vid = videoRef.current; if (vid) { vid.currentTime = n; setDisplayTime(n); }
-        } else if (isDragging === 'end') {
-            const n = Math.min(duration, Math.max(time, startTime + 0.3)); setEndTime(n);
-            const vid = videoRef.current; if (vid) { vid.currentTime = n; setDisplayTime(n); }
-        }
-    }, [isDragging, getTimeFromPosition, startTime, endTime, duration]);
 
-    const handlePointerUp = useCallback(() => { dragStartRef.current = null; setIsDragging(null); }, []);
+        // Throttle video seeking to max once per ~60ms for smooth UI
+        const now = Date.now();
+        const shouldSeek = !dragStartRef.current.lastSeek || (now - dragStartRef.current.lastSeek > 60);
+
+        if (isDragging === 'start') {
+            const n = Math.max(0, Math.min(time, endTime - 0.3)); 
+            setStartTime(n);
+            if (shouldSeek) {
+                const vid = videoRef.current; 
+                if (vid) { vid.currentTime = n; setDisplayTime(n); }
+                dragStartRef.current.lastSeek = now;
+            }
+        } else if (isDragging === 'end') {
+            const n = Math.min(duration, Math.max(time, startTime + 0.3)); 
+            setEndTime(n);
+            if (shouldSeek) {
+                const vid = videoRef.current; 
+                if (vid) { vid.currentTime = n; setDisplayTime(n); }
+                dragStartRef.current.lastSeek = now;
+            }
+        }
+    }, [getTimeFromPosition]);
+
+    const handlePointerUp = useCallback(() => { 
+        if (dragStartRef.current) {
+            // Final precision seek when user releases mouse
+            const { isDragging, startTime, endTime } = stateRef.current;
+            const finalTime = isDragging === 'start' ? startTime : endTime;
+            const vid = videoRef.current; 
+            if (vid) { vid.currentTime = finalTime; setDisplayTime(finalTime); }
+        }
+        dragStartRef.current = null; 
+        setIsDragging(null); 
+    }, []);
 
     useEffect(() => {
         if (isDragging) {
@@ -223,33 +258,21 @@ export default function VideoTrimmer({ videoFile, onConfirm, onBack }) {
                             style={{ left: `${startPct}%`, width: `${endPct - startPct}%`, borderColor: '#4AF626', background: 'rgba(74, 246, 38, 0.12)', boxShadow: '0 0 10px rgba(74, 246, 38, 0.15)' }} />
 
                         {/* Start handle */}
-                        <div className="absolute top-0 z-20 flex flex-col items-center cursor-ew-resize"
-                            style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
+                        <div className="absolute top-4 sm:top-5 z-20 flex justify-center cursor-ew-resize touch-none"
+                            style={{ left: `${startPct}%`, width: '64px', transform: 'translateX(-50%)', height: '80px' }}
                             onMouseDown={(e) => handleHandleDown(e, 'start')} onTouchStart={(e) => handleHandleDown(e, 'start')}>
-                            <div className="w-12 h-14 sm:w-10 sm:h-12 flex items-center justify-center">
-                                <div className={`flex flex-col items-center transition-all duration-150 ${isDragging === 'start' ? 'scale-125' : ''}`}>
-                                    <div className="text-cyber-green text-[7px] leading-none mb-0.5">▼</div>
-                                    <div className={`w-0.5 h-14 sm:h-16 transition-all duration-150 ${isDragging === 'start' ? 'bg-cyber-green shadow-[0_0_8px_rgba(74,246,38,0.6)] w-1' : 'bg-cyber-green/70'}`} />
-                                    <div className="text-cyber-green text-[7px] leading-none mt-0.5">▲</div>
-                                </div>
-                            </div>
-                            <span className={`text-[9px] font-mono font-bold mt-0.5 transition-all ${isDragging === 'start' ? 'text-cyber-green glow-green' : 'text-cyber-green/60'}`}>
+                            <div className={`w-2.5 h-14 sm:h-16 mt-4 rounded-full transition-all duration-200 ${isDragging === 'start' ? 'bg-cyber-green scale-y-110 scale-x-125 shadow-[0_0_12px_rgba(74,246,38,0.8)]' : 'bg-cyber-green border border-cyber-black'}`} />
+                            <span className={`absolute -top-1 text-[10px] sm:text-[11px] font-mono font-bold px-1 rounded bg-cyber-black/70 backdrop-blur-sm transition-all ${isDragging === 'start' ? 'text-cyber-green glow-green scale-110' : 'text-cyber-green/80'}`}>
                                 {formatTime(startTime)}
                             </span>
                         </div>
 
                         {/* End handle */}
-                        <div className="absolute top-0 z-20 flex flex-col items-center cursor-ew-resize"
-                            style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
+                        <div className="absolute top-4 sm:top-5 z-20 flex justify-center cursor-ew-resize touch-none"
+                            style={{ left: `${endPct}%`, width: '64px', transform: 'translateX(-50%)', height: '80px' }}
                             onMouseDown={(e) => handleHandleDown(e, 'end')} onTouchStart={(e) => handleHandleDown(e, 'end')}>
-                            <div className="w-12 h-14 sm:w-10 sm:h-12 flex items-center justify-center">
-                                <div className={`flex flex-col items-center transition-all duration-150 ${isDragging === 'end' ? 'scale-125' : ''}`}>
-                                    <div className="text-cyber-red text-[7px] leading-none mb-0.5">▼</div>
-                                    <div className={`w-0.5 h-14 sm:h-16 transition-all duration-150 ${isDragging === 'end' ? 'bg-cyber-red shadow-[0_0_8px_rgba(255,42,42,0.6)] w-1' : 'bg-cyber-red/70'}`} />
-                                    <div className="text-cyber-red text-[7px] leading-none mt-0.5">▲</div>
-                                </div>
-                            </div>
-                            <span className={`text-[9px] font-mono font-bold mt-0.5 transition-all ${isDragging === 'end' ? 'text-cyber-red glow-red' : 'text-cyber-red/60'}`}>
+                            <div className={`w-2.5 h-14 sm:h-16 mt-4 rounded-full transition-all duration-200 ${isDragging === 'end' ? 'bg-cyber-red scale-y-110 scale-x-125 shadow-[0_0_12px_rgba(255,42,42,0.8)]' : 'bg-cyber-red border border-cyber-black'}`} />
+                            <span className={`absolute -top-1 text-[10px] sm:text-[11px] font-mono font-bold px-1 rounded bg-cyber-black/70 backdrop-blur-sm transition-all ${isDragging === 'end' ? 'text-cyber-red glow-red scale-110' : 'text-cyber-red/80'}`}>
                                 {formatTime(endTime)}
                             </span>
                         </div>
