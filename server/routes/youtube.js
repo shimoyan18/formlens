@@ -8,7 +8,9 @@ import { randomUUID } from 'crypto';
 
 const router = Router();
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const YT_DLP_PATH = join(__dirname, '..', 'bin', 'yt-dlp.exe');
+
+const YTDLP_BIN = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+const YT_DLP_PATH = join(__dirname, '..', 'bin', YTDLP_BIN);
 
 // Node.jsの実行パスからディレクトリを取得（yt-dlpのJSランタイム用）
 const NODE_DIR = dirname(process.execPath);
